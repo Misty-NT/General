@@ -1,0 +1,15 @@
+# This will break down the folder sizes within the root folder. 
+
+
+$targetPath = "C:\Path\to\directory"  # Automatically sets to user's roaming folder
+
+# Get top-level folders and calculate sizes
+Get-ChildItem -Path $targetPath -Directory | ForEach-Object {
+    $folder = $_.FullName
+    $size = (Get-ChildItem -Path $folder -Recurse -ErrorAction SilentlyContinue | 
+             Measure-Object -Property Length -Sum).Sum
+    [PSCustomObject]@{
+        Folder = $_.Name
+        SizeGB = '{0:N2}' -f ($size / 1GB)
+    }
+} | Sort-Object -Property SizeGB -Descending | Format-Table -AutoSize

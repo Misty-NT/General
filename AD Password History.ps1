@@ -6,4 +6,4 @@ Get-ADUser -Filter * -Properties DisplayName, SamAccountName, PasswordLastSet |
     Sort-Object PasswordLastChanged -Descending |
     Export-Csv -Path "C:\NetworkTitan\AD_UserPasswordLastChanged.csv" -NoTypeInformation
 
-Write-Host "✅ Export complete. File saved to C:\NetworkTitan\AD_UserPasswordLastChanged.csv"
+Write-Host "Export complete. File saved to C:\NetworkTitan\AD_UserPasswordLastChanged.csv"

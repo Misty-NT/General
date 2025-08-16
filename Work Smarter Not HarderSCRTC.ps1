@@ -20,15 +20,18 @@ $mailboxes = @(
     "email@domain.com,",
     "email@domain.com,"
 )
+# Create an empty array to collect results
+$results = @()
 
 foreach ($email in $mailboxes) {
-    $params = [ordered]@{
-        Identity = $email
-    }
+    $stats = Get-MailboxStatistics -Identity $email | Select-Object DisplayName, TotalItemSize
 
-    Get-MailboxStatistics @params | Select-Object DisplayName, TotalItemSize
+    # Add the result to the array
+    $results += $stats
 }
 
+# Export to CSV
+$results | Export-Csv -Path "C:\NT\INBOX SIZE REPORT.csv" -NoTypeInformation -Encoding UTF8
 
 ***********************************************************************************
 ===================================================================================

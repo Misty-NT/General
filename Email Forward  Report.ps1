@@ -6,3 +6,4 @@ Where-Object {
 Select-Object DisplayName, UserPrincipalName, ForwardingSMTPAddress, ForwardingAddress, DeliverToMailboxAndForward |
 Export-Csv -Path "c:\NT\MailboxForwardingReport.csv" -NoTypeInformation -Encoding UTF8
 
+# Get a list of the emails being forwarded and where they forward to. 

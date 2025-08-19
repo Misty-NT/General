@@ -1,60 +1,64 @@
-# Search and list the Orphaned files in the installer folder and then move them to the NT folder. 
-if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
-    Write-Warning "This script must be run as Administrator!"
-    exit
+# === Define Paths ===
+$Folder = "C:\NetworkTitan\WICleanup"
+$MoveDestination = "C:\NetworkTitan\Installer Folder Cleanup"
+$LogPath = "$Folder\WICleanup-MoveLog.txt"
+
+# === Ensure folders exist ===
+foreach ($path in @($Folder, $MoveDestination)) {
+    if (-Not (Test-Path $path)) {
+        New-Item -ItemType Directory -Path $path -Force | Out-Null
+    }
 }
 
-# Set Source and Destination
-$installerFolder = "$env:windir\Installer"
-$destinationFolder = "C:\NetworkTitan\Installer Folder Cleanup"
+# === Initialize Installer COM Object ===
+$installer = New-Object -ComObject WindowsInstaller.Installer
+$usedFiles = @{}
 
-# Create destination folder if it doesn't exist
-if (-not (Test-Path $destinationFolder)) {
-    New-Item -ItemType Directory -Path $destinationFolder -Force | Out-Null
-}
-
-# Get list of all .msi and .msp files in the Installer folder
-$installerFiles = Get-ChildItem -Path $installerFolder -Filter *.ms* -Recurse -File
-
-# Get referenced products from registry
-$referencedFiles = @()
-
-# Check for product cache references (used by MSI)
-$keyPaths = @(
-    "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Products",
-    "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Patches"
-)
-
-foreach ($keyPath in $keyPaths) {
-    Get-ChildItem -Path $keyPath -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
-        $_.GetValueNames() | ForEach-Object {
-            $val = $_.ToString()
-            if ($val -match "\.ms(i|p)$") {
-                $referencedFiles += $val.ToLower()
+# === Collect in-use MSI/MSP files ===
+foreach ($product in $installer.Products) {
+    try {
+        foreach ($patch in $installer.Patches($product)) {
+            $patchPath = $installer.PatchInfo($patch, "LocalPackage")
+            if ($patchPath) {
+                $usedFiles[$patchPath.ToLower()] = $true
             }
         }
-    }
-}
 
-# Build a list of orphaned files
-$orphans = @()
-
-foreach ($file in $installerFiles) {
-    if ($referencedFiles -notcontains $file.Name.ToLower()) {
-        $orphans += $file
-    }
-}
-
-# Move orphaned files
-foreach ($orphan in $orphans) {
-    try {
-        $targetPath = Join-Path -Path $destinationFolder -ChildPath $orphan.Name
-        Move-Item -Path $orphan.FullName -Destination $targetPath -Force
-        Write-Host "Moved: $($orphan.Name)" -ForegroundColor Green
+        $localPackage = $installer.ProductInfo($product, "LocalPackage")
+        if ($localPackage) {
+            $usedFiles[$localPackage.ToLower()] = $true
+        }
     } catch {
-        Write-Warning "Failed to move $($orphan.Name): $_"
+        # Continue on error
     }
 }
 
-Write-Host "`n Completed. $($orphans.Count) orphaned file(s) moved to: $destinationFolder" -ForegroundColor Cyan
+# === Scan C:\Windows\Installer for orphaned .msi/.msp files ===
+$installerFolder = "C:\Windows\Installer"
+$orphanedFiles = @()
+
+Get-ChildItem -Path $installerFolder -File -Filter *.ms* | ForEach-Object {
+    $lowerPath = $_.FullName.ToLower()
+    if (-not $usedFiles.ContainsKey($lowerPath)) {
+        $orphanedFiles += $_
+    }
+}
+
+# === Move orphaned files and log ===
+Add-Content -Path $LogPath -Value "=== Orphaned Installer Files Moved on $(Get-Date) ==="
+
+foreach ($file in $orphanedFiles) {
+    try {
+        $destinationPath = Join-Path -Path $MoveDestination -ChildPath $file.Name
+        Move-Item -Path $file.FullName -Destination $destinationPath -Force
+        Add-Content -Path $LogPath -Value "Moved: $($file.FullName) → $destinationPath"
+        Write-Host "Moved: $($file.Name)" -ForegroundColor Green
+    } catch {
+        Write-Warning "Failed to move $($file.Name): $_"
+        Add-Content -Path $LogPath -Value "ERROR: Failed to move $($file.FullName): $_"
+    }
+}
+
+Write-Host "`n📄 Log written to: $LogPath"
+Write-Host "✔️ $($orphanedFiles.Count) orphaned file(s) were moved to: $MoveDestination"
 

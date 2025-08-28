@@ -193,9 +193,29 @@ ToJsonFile $manifest (Join-Path $OutputRoot "Manifest.json")
 $zipPath = Join-Path (Split-Path $OutputRoot -Parent) ("$(Split-Path $OutputRoot -Leaf).zip")
 if(Test-Path $zipPath){ Remove-Item $zipPath -Force }
 Compress-Archive -Path (Join-Path $OutputRoot '*') -DestinationPath $zipPath -Force
+# ---------------- MANIFEST + ZIP ----------------
+$manifest = [pscustomobject]@{
+  CollectedAtUTC = (Get-Date).ToUniversalTime()
+  ComputerName   = $env:COMPUTERNAME
+  UserProfile    = $TargetProfilePath
+  OutputRoot     = $OutputRoot
+}
+ToJsonFile $manifest (Join-Path $OutputRoot "Manifest.json")
 
+# 1) Close the transcript BEFORE zipping so run.log is unlocked
 Stop-Transcript | Out-Null
+
+# 2) Create ZIP (exclude the transcript log)
+$zipPath = Join-Path (Split-Path $OutputRoot -Parent) ("$(Split-Path $OutputRoot -Leaf).zip")
+if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+
+$filesToZip = Get-ChildItem $OutputRoot -Recurse -File |
+              Where-Object { $_.FullName -notlike '*\Logs\run.log' }
+
+Compress-Archive -Path $filesToZip.FullName -DestinationPath $zipPath -Force
+
 Write-Host "Done. Output: $OutputRoot"
 Write-Host "ZIP: $zipPath"
+
 
 

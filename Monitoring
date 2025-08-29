@@ -1,0 +1,28 @@
+#!/bin/bash
+# Reuse the same logic as the Fact, but with an exit code for monitoring.
+apps=(
+"/Applications/Adobe Acrobat.app"
+"/Applications/Adobe Acrobat DC.app"
+"/Applications/Adobe Acrobat Reader.app"
+"/Applications/Adobe Acrobat Reader DC.app"
+"/Applications/Logi Options.app"
+"/Applications/Logi Options+.app"
+)
+
+bad=""
+
+for app in "${apps[@]}"; do
+  if [ -d "$app" ]; then
+    if find "$app" -perm -0002 -print -quit >/dev/null 2>&1; then
+      bad="$bad $app"
+    fi
+  fi
+done
+
+if [ -z "$bad" ]; then
+  echo "OK"
+  exit 0
+else
+  echo "BAD:$bad"
+  exit 1
+fi

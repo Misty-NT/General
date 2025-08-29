@@ -1,0 +1,43 @@
+#!/bin/bash
+set -euo pipefail
+
+fix_bundle() {
+  local app="$1"
+  [ -d "$app" ] || return 0
+
+  echo "Fixing permissions on: $app"
+
+  chmod -R go-w "$app" || true
+
+
+  find "$app" -type d -exec chmod 755 {} + 2>/dev/null || true
+  find "$app" -type f -exec chmod 644 {} + 2>/dev/null || true
+
+  if [ -d "$app/Contents/MacOS" ]; then
+    find "$app/Contents/MacOS" -type f -exec chmod 755 {} + 2>/dev/null || true
+  fi
+
+
+  if find "$app" \( -perm -0002 -o -perm -0020 \) -print -quit | grep -q .; then
+    echo "ERROR: Still group/world-writable items in $app"
+    find "$app" \( -perm -0002 -o -perm -0020 \) -ls
+    return 1
+  fi
+
+  echo "OK: $app normalized"
+}
+
+apps=(
+"/Applications/Adobe Acrobat.app"
+"/Applications/Adobe Acrobat DC.app"
+"/Applications/Adobe Acrobat Reader.app"
+"/Applications/Adobe Acrobat Reader DC.app"
+"/Applications/Logi Options.app"
+"/Applications/Logi Options+.app"
+)
+
+for app in "${apps[@]}"; do
+  fix_bundle "$app"
+done
+
+exit 0

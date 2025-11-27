@@ -1,18 +1,19 @@
-$Log = "C:\ProgramData\Ninja\dotnet-runtime-cleanup.log"
+# Logging Setup 
+$Log = "C:\NetworkTitan\DOTNET\dotnet-runtime-cleanup.log"
 New-Item -ItemType File -Path $Log -Force | Out-Null
-
+# . Logging Function  dual output get instant visibility in Ninja.
 function Log {
     param ($Msg)
     Write-Output $Msg
     Add-Content $Log "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') - $Msg"
 }
-
+# This marks the beginning of execution in logs so runs don’t blur together.
 Log "=== .NET Runtime Cleanup Started ==="
-
+# Guardrails
 $AllowedToRemove = @("6.0.36")
 $RuntimeName = "Microsoft Windows Desktop Runtime"
 
-# Pull uninstall entries
+# Registry Query
 $Installed = Get-ItemProperty `
   HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*,
   HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* `
@@ -23,7 +24,7 @@ Where-Object {
 
 if (-not $Installed) {
     Log "No Windows Desktop Runtimes found."
-    exit 0
+    exit 0microsoft runtime 
 }
 
 # Parse REAL version from DisplayName

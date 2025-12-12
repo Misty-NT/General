@@ -9,3 +9,4 @@ if ($sysmon) {
 } else {
     Write-Output "Sysmon is not installed."
 }
+# sysmon64.exe -u force
